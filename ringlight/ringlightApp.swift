@@ -162,15 +162,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject, NSPopoverD
         createMenuBarIcon()
         setupGlobalKeyboardShortcuts()
         setupMouseTracking()
+        updateMouseLocation()
     }
     
     func setupMouseTracking() {
+        let eventMask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]
         // Track mouse globally
-        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
+        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: eventMask) { [weak self] event in
             self?.updateMouseLocation()
         }
         // Also track locally for when the app is active
-        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: eventMask) { [weak self] event in
             self?.updateMouseLocation()
             return event
         }
@@ -396,8 +398,10 @@ struct RingLightOverlay: View {
                 let glow = appDelegate.glowIntensity
                 
                 ZStack {
+                    // 1. Wide Atmospheric Ambient Glow (Unmasked)
+                    // Casts soft, warm ambient light deep into the room and screen interior.
+                    // Kept unmasked so the screen background is never carved or bitten into.
                     if glow > 0 {
-                        // Wide atmospheric ambient glow (casts soft light into room and screen)
                         RoundedRingShape(
                             thickness: appDelegate.ringThickness + 20 * glow,
                             cornerRadius: appDelegate.cornerRadius,
@@ -406,81 +410,105 @@ struct RingLightOverlay: View {
                         )
                         .fill(ringColor.opacity(brightness * glow * 0.45))
                         .blur(radius: 35 + 45 * glow)
-                        
-                        // Medium body bloom halo
-                        RoundedRingShape(
-                            thickness: appDelegate.ringThickness + 10 * glow,
-                            cornerRadius: appDelegate.cornerRadius,
-                            margin: max(0, appDelegate.margin - 5 * glow),
-                            topOffset: menuBarHeight
-                        )
-                        .fill(ringColor.opacity(brightness * glow * 0.6))
-                        .blur(radius: 15 + 20 * glow)
-                        
-                        // Tight perimeter bloom around edges
-                        RoundedRingShape(
-                            thickness: appDelegate.ringThickness + 4 * glow,
-                            cornerRadius: appDelegate.cornerRadius,
-                            margin: max(0, appDelegate.margin - 2 * glow),
-                            topOffset: menuBarHeight
-                        )
-                        .fill(ringColor.opacity(brightness * glow * 0.75))
-                        .blur(radius: 4 + 8 * glow)
                     }
                     
-                    // Main illuminated ring body
-                    RoundedRingShape(
-                        thickness: appDelegate.ringThickness,
-                        cornerRadius: appDelegate.cornerRadius,
-                        margin: appDelegate.margin,
-                        topOffset: menuBarHeight
-                    )
-                    .fill(ringColor.opacity(brightness))
-                    .blur(radius: glow > 0 ? min(2.5, 2.5 * glow) : 0)
-                    
-                    // Luminous central core highlight (illuminated tube / neon effect)
-                    if glow > 0 && appDelegate.ringThickness > 14 {
-                        let coreThickness = appDelegate.ringThickness * 0.38
-                        let inset = (appDelegate.ringThickness - coreThickness) / 2
+                    // 2. Ring Light Structure (Masked with generous reveal radius & strong center clearing)
+                    // Completely clears out right at the cursor (r <= 60 pt) so text and buttons are 100% crisp,
+                    // and gently ramps back in over a wide 260 pt smoothstep radius.
+                    ZStack {
+                        if glow > 0 {
+                            // Medium body bloom halo
+                            RoundedRingShape(
+                                thickness: appDelegate.ringThickness + 10 * glow,
+                                cornerRadius: appDelegate.cornerRadius,
+                                margin: max(0, appDelegate.margin - 5 * glow),
+                                topOffset: menuBarHeight
+                            )
+                            .fill(ringColor.opacity(brightness * glow * 0.6))
+                            .blur(radius: 15 + 20 * glow)
+                            
+                            // Tight perimeter bloom around edges
+                            RoundedRingShape(
+                                thickness: appDelegate.ringThickness + 4 * glow,
+                                cornerRadius: appDelegate.cornerRadius,
+                                margin: max(0, appDelegate.margin - 2 * glow),
+                                topOffset: menuBarHeight
+                            )
+                            .fill(ringColor.opacity(brightness * glow * 0.75))
+                            .blur(radius: 4 + 8 * glow)
+                        }
+                        
+                        // Main illuminated ring body
                         RoundedRingShape(
-                            thickness: coreThickness,
-                            cornerRadius: max(0, appDelegate.cornerRadius - inset),
-                            margin: appDelegate.margin + inset,
+                            thickness: appDelegate.ringThickness,
+                            cornerRadius: appDelegate.cornerRadius,
+                            margin: appDelegate.margin,
                             topOffset: menuBarHeight
                         )
-                        .fill(
-                            Color.white.opacity(brightness * glow * 0.55)
-                        )
-                        .blur(radius: 2 + 3 * glow)
-                    }
-                }
-                .mask(
-                    Group {
-                        if appDelegate.avoidMouse {
-                            Canvas { context, size in
-                                // Draw a full-screen white mask
-                                context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.white))
-                                
-                                // Draw a "hole" at the mouse position
-                                let holeRadius: CGFloat = 60
-                                let holeRect = CGRect(
-                                    x: appDelegate.mouseLocation.x - holeRadius,
-                                    y: appDelegate.mouseLocation.y - holeRadius,
-                                    width: holeRadius * 2,
-                                    height: holeRadius * 2
-                                )
-                                
-                                // Use destinationOut to create a hole in the mask
-                                context.blendMode = .destinationOut
-                                context.fill(Path(ellipseIn: holeRect), with: .color(.white))
-                                // Add some blur to the hole for smoother transition
-                                context.addFilter(.blur(radius: 20))
-                            }
-                        } else {
-                            Rectangle().fill(Color.white)
+                        .fill(ringColor.opacity(brightness))
+                        .blur(radius: glow > 0 ? min(2.5, 2.5 * glow) : 0)
+                        
+                        // Luminous central core highlight (illuminated tube / neon effect)
+                        if glow > 0 && appDelegate.ringThickness > 14 {
+                            let coreThickness = appDelegate.ringThickness * 0.38
+                            let inset = (appDelegate.ringThickness - coreThickness) / 2
+                            RoundedRingShape(
+                                thickness: coreThickness,
+                                cornerRadius: max(0, appDelegate.cornerRadius - inset),
+                                margin: appDelegate.margin + inset,
+                                topOffset: menuBarHeight
+                            )
+                            .fill(
+                                Color.white.opacity(brightness * glow * 0.55)
+                            )
+                            .blur(radius: 2 + 3 * glow)
                         }
                     }
-                )
+                    .mask(
+                        Group {
+                            if appDelegate.avoidMouse {
+                                Canvas { context, size in
+                                    // Start with a fully opaque mask
+                                    context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.white))
+                                    
+                                    let mousePos = appDelegate.mouseLocation
+                                    let eraseRadius: CGFloat = 260
+                                    
+                                    // Smoothstep transition with strong clear core (60 pt) and generous 260 pt radius
+                                    let gradient = Gradient(stops: [
+                                        .init(color: .white, location: 0.00),        // 100% cleared
+                                        .init(color: .white, location: 0.23),        // 100% cleared up to 60 pt from cursor
+                                        .init(color: .white.opacity(0.93), location: 0.35),
+                                        .init(color: .white.opacity(0.80), location: 0.45),
+                                        .init(color: .white.opacity(0.57), location: 0.58),
+                                        .init(color: .white.opacity(0.31), location: 0.72),
+                                        .init(color: .white.opacity(0.11), location: 0.85),
+                                        .init(color: .white.opacity(0.02), location: 0.94),
+                                        .init(color: .clear, location: 1.00)         // fully restored at 260 pt
+                                    ])
+                                    
+                                    context.blendMode = .destinationOut
+                                    context.fill(
+                                        Path(ellipseIn: CGRect(
+                                            x: mousePos.x - eraseRadius,
+                                            y: mousePos.y - eraseRadius,
+                                            width: eraseRadius * 2,
+                                            height: eraseRadius * 2
+                                        )),
+                                        with: .radialGradient(
+                                            gradient,
+                                            center: mousePos,
+                                            startRadius: 0,
+                                            endRadius: eraseRadius
+                                        )
+                                    )
+                                }
+                            } else {
+                                Rectangle().fill(Color.white)
+                            }
+                        }
+                    )
+                }
             }
         }
         .ignoresSafeArea()
