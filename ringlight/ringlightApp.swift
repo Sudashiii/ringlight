@@ -341,6 +341,7 @@ struct TemperatureSlider: View {
             }
             
             GeometryReader { geometry in
+                let thumbSize: CGFloat = 18
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(
@@ -356,19 +357,37 @@ struct TemperatureSlider: View {
                         )
                         .frame(height: 20)
                     
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 18, height: 18)
-                        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-                        .offset(x: value * (geometry.size.width - 18))
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { gesture in
-                                    let newValue = gesture.location.x / geometry.size.width
-                                    value = min(max(newValue, 0), 1)
-                                }
-                        )
+                    // Unfilled ring thumb allowing track color to show through the center
+                    ZStack {
+                        // White ring body (unfilled in the middle)
+                        Circle()
+                            .strokeBorder(Color.white, lineWidth: 3)
+                            .frame(width: thumbSize, height: thumbSize)
+                        
+                        // Inner black-ish border outlining the central color hole
+                        Circle()
+                            .strokeBorder(Color.black.opacity(0.35), lineWidth: 0.75)
+                            .frame(width: thumbSize - 5.5, height: thumbSize - 5.5)
+                        
+                        // Outer black-ish border outlining the exterior ring
+                        Circle()
+                            .strokeBorder(Color.black.opacity(0.35), lineWidth: 0.75)
+                            .frame(width: thumbSize, height: thumbSize)
+                    }
+                    .frame(width: thumbSize, height: thumbSize)
+                    .shadow(color: Color.black.opacity(0.25), radius: 2, x: 0, y: 1)
+                    .offset(x: value * (geometry.size.width - thumbSize))
                 }
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { gesture in
+                            let trackWidth = geometry.size.width - thumbSize
+                            guard trackWidth > 0 else { return }
+                            let clampedX = min(max(gesture.location.x - thumbSize / 2, 0), trackWidth)
+                            value = clampedX / trackWidth
+                        }
+                )
             }
             .frame(height: 20)
             
