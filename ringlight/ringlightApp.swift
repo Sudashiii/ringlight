@@ -79,6 +79,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject, NSPopoverD
     @Published var colorTemperature: CGFloat = 0.5
     @Published var cornerRadius: CGFloat = 80
     @Published var glowIntensity: CGFloat = 0.5
+    @Published var intensity: CGFloat = 1.0
     @Published var isActive: Bool = true
     @Published var avoidMouse: Bool = true
     @Published var showCameraPreview: Bool = false
@@ -88,21 +89,70 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject, NSPopoverD
     
     var captureSession: AVCaptureSession?
     
+    struct RingColorPalette {
+        let base: Color
+        let mid: Color
+        let core: Color
+    }
+    
+    var colorPalette: RingColorPalette {
+        let temp = colorTemperature
+        if temp < 0.5 {
+            // Warm side: rich golden-amber to neutral white
+            let w = (0.5 - temp) / 0.5
+            let baseColor = Color(
+                red: 1.0,
+                green: 1.0 - 0.40 * w,
+                blue: 1.0 - 0.88 * w
+            )
+            let midColor = Color(
+                red: 1.0,
+                green: 1.0 - 0.14 * w,
+                blue: 1.0 - 0.70 * w
+            )
+            let coreColor = Color(
+                red: 1.0,
+                green: 1.0 - 0.03 * w,
+                blue: 1.0 - 0.14 * w
+            )
+            return RingColorPalette(base: baseColor, mid: midColor, core: coreColor)
+        } else {
+            // Cool side: neutral white to crisp sky ice-blue
+            let c = (temp - 0.5) / 0.5
+            let baseColor = Color(
+                red: 1.0 - 0.48 * c,
+                green: 1.0 - 0.20 * c,
+                blue: 1.0
+            )
+            let midColor = Color(
+                red: 1.0 - 0.28 * c,
+                green: 1.0 - 0.10 * c,
+                blue: 1.0
+            )
+            let coreColor = Color(
+                red: 1.0 - 0.08 * c,
+                green: 1.0 - 0.03 * c,
+                blue: 1.0
+            )
+            return RingColorPalette(base: baseColor, mid: midColor, core: coreColor)
+        }
+    }
+    
     var ringColor: NSColor {
         temperatureToColor(colorTemperature)
     }
     
     func temperatureToColor(_ temp: CGFloat) -> NSColor {
         if temp < 0.5 {
-            let t = temp * 2
+            let w = (0.5 - temp) / 0.5
             let r: CGFloat = 1.0
-            let g: CGFloat = 0.7 + (0.3 * t)
-            let b: CGFloat = 0.4 + (0.6 * t)
+            let g: CGFloat = 1.0 - (0.35 * w)
+            let b: CGFloat = 1.0 - (0.75 * w)
             return NSColor(red: r, green: g, blue: b, alpha: 1.0)
         } else {
-            let t = (temp - 0.5) * 2
-            let r: CGFloat = 1.0 - (0.15 * t)
-            let g: CGFloat = 1.0 - (0.05 * t)
+            let c = (temp - 0.5) / 0.5
+            let r: CGFloat = 1.0 - (0.35 * c)
+            let g: CGFloat = 1.0 - (0.15 * c)
             let b: CGFloat = 1.0
             return NSColor(red: r, green: g, blue: b, alpha: 1.0)
         }
@@ -139,7 +189,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject, NSPopoverD
     }
     
     func updatePopoverSize() {
-        popover?.contentSize = NSSize(width: 260, height: 640)
+        popover?.contentSize = NSSize(width: 260, height: 700)
     }
     
     func setSystemBrightness(_ level: Float) {
@@ -249,7 +299,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject, NSPopoverD
             button.target = self
         }
         popover = NSPopover()
-        popover?.contentSize = NSSize(width: 260, height: 640)
+        popover?.contentSize = NSSize(width: 260, height: 700)
         popover?.behavior = .transient
         popover?.delegate = self
         popover?.contentViewController = NSHostingController(rootView: MenuBarControlView(appDelegate: self))
@@ -412,75 +462,113 @@ struct RingLightOverlay: View {
         GeometryReader { geometry in
             if appDelegate.isActive {
                 let menuBarHeight = getMenuBarHeight()
-                let ringColor = Color(nsColor: appDelegate.ringColor)
+                let palette = appDelegate.colorPalette
                 let brightness = appDelegate.brightness
                 let glow = appDelegate.glowIntensity
+                let intensity = appDelegate.intensity
+                let T = appDelegate.ringThickness
                 
                 ZStack {
                     // 1. Wide Atmospheric Ambient Glow (Unmasked)
                     // Casts soft, warm ambient light deep into the room and screen interior.
                     // Kept unmasked so the screen background is never carved or bitten into.
                     if glow > 0 {
+                        // Broad outer atmospheric dispersion (casts rich warm ambient light deep into the room)
                         RoundedRingShape(
-                            thickness: appDelegate.ringThickness + 20 * glow,
+                            thickness: T + 35 * glow,
+                            cornerRadius: appDelegate.cornerRadius,
+                            margin: max(0, appDelegate.margin - 17 * glow),
+                            topOffset: menuBarHeight
+                        )
+                        .fill(palette.base.opacity(brightness * glow * 0.45))
+                        .blur(radius: 40 + 50 * glow)
+                        
+                        // Atmospheric radiance wash (fills the room/screen with radiant golden warmth)
+                        RoundedRingShape(
+                            thickness: T + 20 * glow,
                             cornerRadius: appDelegate.cornerRadius,
                             margin: max(0, appDelegate.margin - 10 * glow),
                             topOffset: menuBarHeight
                         )
-                        .fill(ringColor.opacity(brightness * glow * 0.45))
-                        .blur(radius: 35 + 45 * glow)
+                        .fill(palette.mid.opacity(brightness * glow * (0.30 + 0.50 * intensity)))
+                        .blur(radius: 20 + 25 * glow)
                     }
                     
                     // 2. Ring Light Structure (Masked with generous reveal radius & strong center clearing)
-                    // Completely clears out right at the cursor (r <= 60 pt) so text and buttons are 100% crisp,
-                    // and gently ramps back in over a wide 260 pt smoothstep radius.
+                    // Multi-tier gradient emission: rich amber base -> radiant golden-yellow mid -> warm luminous core
                     ZStack {
                         if glow > 0 {
-                            // Medium body bloom halo
+                            // Radiant bloom halo wrapping the ring
                             RoundedRingShape(
-                                thickness: appDelegate.ringThickness + 10 * glow,
+                                thickness: T + 10 * glow,
                                 cornerRadius: appDelegate.cornerRadius,
                                 margin: max(0, appDelegate.margin - 5 * glow),
                                 topOffset: menuBarHeight
                             )
-                            .fill(ringColor.opacity(brightness * glow * 0.6))
-                            .blur(radius: 15 + 20 * glow)
+                            .fill(palette.mid.opacity(brightness * glow * (0.40 + 0.50 * intensity)))
+                            .blur(radius: 8 + 14 * glow)
                             
-                            // Tight perimeter bloom around edges
+                            // Tight edge perimeter bloom
                             RoundedRingShape(
-                                thickness: appDelegate.ringThickness + 4 * glow,
+                                thickness: T + 3 * glow,
                                 cornerRadius: appDelegate.cornerRadius,
-                                margin: max(0, appDelegate.margin - 2 * glow),
+                                margin: max(0, appDelegate.margin - 1.5 * glow),
                                 topOffset: menuBarHeight
                             )
-                            .fill(ringColor.opacity(brightness * glow * 0.75))
-                            .blur(radius: 4 + 8 * glow)
+                            .fill(palette.base.opacity(brightness * glow * 0.85))
+                            .blur(radius: 3 + 5 * glow)
                         }
                         
-                        // Main illuminated ring body
+                        // Main illuminated ring base
                         RoundedRingShape(
-                            thickness: appDelegate.ringThickness,
+                            thickness: T,
                             cornerRadius: appDelegate.cornerRadius,
                             margin: appDelegate.margin,
                             topOffset: menuBarHeight
                         )
-                        .fill(ringColor.opacity(brightness))
-                        .blur(radius: glow > 0 ? min(2.5, 2.5 * glow) : 0)
+                        .fill(palette.base.opacity(brightness))
+                        .blur(radius: glow > 0 ? min(2.0, 2.0 * glow) : 0)
                         
-                        // Luminous central core highlight (illuminated tube / neon effect)
-                        if glow > 0 && appDelegate.ringThickness > 14 {
-                            let coreThickness = appDelegate.ringThickness * 0.38
-                            let inset = (appDelegate.ringThickness - coreThickness) / 2
+                        // Radiant golden mid-band gradient (gives the rich, prominent yellowness across the band)
+                        if intensity > 0 && T > 8 {
+                            let midThickness = T * (0.50 + 0.30 * intensity)
+                            let inset = (T - midThickness) / 2
+                            RoundedRingShape(
+                                thickness: midThickness,
+                                cornerRadius: max(0, appDelegate.cornerRadius - inset),
+                                margin: appDelegate.margin + inset,
+                                topOffset: menuBarHeight
+                            )
+                            .fill(palette.mid.opacity(brightness * intensity * (0.45 + 0.50 * glow)))
+                            .blur(radius: 2.0 + 3.5 * glow)
+                        }
+                        
+                        // Luminous incandescent core (creamy warm-white brilliance)
+                        if intensity > 0 && T > 12 {
+                            let coreThickness = T * (0.32 + 0.22 * intensity)
+                            let inset = (T - coreThickness) / 2
                             RoundedRingShape(
                                 thickness: coreThickness,
                                 cornerRadius: max(0, appDelegate.cornerRadius - inset),
                                 margin: appDelegate.margin + inset,
                                 topOffset: menuBarHeight
                             )
-                            .fill(
-                                Color.white.opacity(brightness * glow * 0.55)
+                            .fill(palette.core.opacity(brightness * intensity * (0.50 + 0.45 * glow)))
+                            .blur(radius: 1.2 + 2.2 * glow)
+                        }
+                        
+                        // White-hot filament center spine
+                        if intensity > 0 && T > 16 {
+                            let spineThickness = T * (0.14 + 0.12 * intensity)
+                            let inset = (T - spineThickness) / 2
+                            RoundedRingShape(
+                                thickness: spineThickness,
+                                cornerRadius: max(0, appDelegate.cornerRadius - inset),
+                                margin: appDelegate.margin + inset,
+                                topOffset: menuBarHeight
                             )
-                            .blur(radius: 2 + 3 * glow)
+                            .fill(Color.white.opacity(brightness * intensity * (0.55 + 0.40 * glow)))
+                            .blur(radius: 0.8 + 1.2 * glow)
                         }
                     }
                     .mask(
@@ -671,13 +759,15 @@ struct MenuBarControlView: View {
                 
                 TemperatureSlider(value: $appDelegate.colorTemperature)
                 
+                ControlSlider(icon: "rays", label: "Intensity", value: $appDelegate.intensity, range: 0.0...1.0, unit: "%")
+                
+                ControlSlider(icon: "sun.dust.fill", label: "Glow", value: $appDelegate.glowIntensity, range: 0.0...1.0, unit: "%")
+                
                 ControlSlider(icon: "rectangle.expand.vertical", label: "Thickness", value: $appDelegate.ringThickness, range: 10...100, unit: "px")
                 
                 ControlSlider(icon: "circle.circle", label: "Radius", value: $appDelegate.cornerRadius, range: 0...200, unit: "px")
                 
                 ControlSlider(icon: "arrow.up.left.and.arrow.down.right", label: "Margin", value: $appDelegate.margin, range: 0...40, unit: "px")
-                
-                ControlSlider(icon: "sun.dust.fill", label: "Glow", value: $appDelegate.glowIntensity, range: 0.0...1.0, unit: "%")
                 
                 HStack(spacing: 8) {
                     Toggle("", isOn: $appDelegate.avoidMouse)
@@ -721,6 +811,6 @@ struct MenuBarControlView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 14) // More balanced padding
         }
-        .frame(width: 260, height: 640)
+        .frame(width: 260, height: 700)
     }
 }
