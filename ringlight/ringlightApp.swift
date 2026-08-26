@@ -469,9 +469,7 @@ struct RingLightOverlay: View {
                 let T = appDelegate.ringThickness
                 
                 ZStack {
-                    // 1. Wide Atmospheric Ambient Glow (Unmasked)
-                    // Casts soft, warm ambient light deep into the room and screen interior.
-                    // Kept unmasked so the screen background is never carved or bitten into.
+                    // 1. Wide Atmospheric Ambient Glow & Radiance Wash
                     if glow > 0 {
                         // Broad outer atmospheric dispersion (casts rich warm ambient light deep into the room)
                         RoundedRingShape(
@@ -494,128 +492,128 @@ struct RingLightOverlay: View {
                         .blur(radius: 20 + 25 * glow)
                     }
                     
-                    // 2. Ring Light Structure (Masked with generous reveal radius & strong center clearing)
-                    // Multi-tier gradient emission: rich amber base -> radiant golden-yellow mid -> warm luminous core
-                    ZStack {
-                        if glow > 0 {
-                            // Radiant bloom halo wrapping the ring
-                            RoundedRingShape(
-                                thickness: T + 10 * glow,
-                                cornerRadius: appDelegate.cornerRadius,
-                                margin: max(0, appDelegate.margin - 5 * glow),
-                                topOffset: menuBarHeight
-                            )
-                            .fill(palette.mid.opacity(brightness * glow * (0.40 + 0.50 * intensity)))
-                            .blur(radius: 8 + 14 * glow)
-                            
-                            // Tight edge perimeter bloom
-                            RoundedRingShape(
-                                thickness: T + 3 * glow,
-                                cornerRadius: appDelegate.cornerRadius,
-                                margin: max(0, appDelegate.margin - 1.5 * glow),
-                                topOffset: menuBarHeight
-                            )
-                            .fill(palette.base.opacity(brightness * glow * 0.85))
-                            .blur(radius: 3 + 5 * glow)
-                        }
-                        
-                        // Main illuminated ring base
+                    // 2. Ring Light Bloom & Structure
+                    if glow > 0 {
+                        // Radiant bloom halo wrapping the ring
                         RoundedRingShape(
-                            thickness: T,
+                            thickness: T + 10 * glow,
                             cornerRadius: appDelegate.cornerRadius,
-                            margin: appDelegate.margin,
+                            margin: max(0, appDelegate.margin - 5 * glow),
                             topOffset: menuBarHeight
                         )
-                        .fill(palette.base.opacity(brightness))
-                        .blur(radius: glow > 0 ? min(2.0, 2.0 * glow) : 0)
+                        .fill(palette.mid.opacity(brightness * glow * (0.40 + 0.50 * intensity)))
+                        .blur(radius: 8 + 14 * glow)
                         
-                        // Radiant golden mid-band gradient (gives the rich, prominent yellowness across the band)
-                        if intensity > 0 && T > 8 {
-                            let midThickness = T * (0.50 + 0.30 * intensity)
-                            let inset = (T - midThickness) / 2
-                            RoundedRingShape(
-                                thickness: midThickness,
-                                cornerRadius: max(0, appDelegate.cornerRadius - inset),
-                                margin: appDelegate.margin + inset,
-                                topOffset: menuBarHeight
-                            )
-                            .fill(palette.mid.opacity(brightness * intensity * (0.45 + 0.50 * glow)))
-                            .blur(radius: 2.0 + 3.5 * glow)
-                        }
-                        
-                        // Luminous incandescent core (creamy warm-white brilliance)
-                        if intensity > 0 && T > 12 {
-                            let coreThickness = T * (0.32 + 0.22 * intensity)
-                            let inset = (T - coreThickness) / 2
-                            RoundedRingShape(
-                                thickness: coreThickness,
-                                cornerRadius: max(0, appDelegate.cornerRadius - inset),
-                                margin: appDelegate.margin + inset,
-                                topOffset: menuBarHeight
-                            )
-                            .fill(palette.core.opacity(brightness * intensity * (0.50 + 0.45 * glow)))
-                            .blur(radius: 1.2 + 2.2 * glow)
-                        }
-                        
-                        // White-hot filament center spine
-                        if intensity > 0 && T > 16 {
-                            let spineThickness = T * (0.14 + 0.12 * intensity)
-                            let inset = (T - spineThickness) / 2
-                            RoundedRingShape(
-                                thickness: spineThickness,
-                                cornerRadius: max(0, appDelegate.cornerRadius - inset),
-                                margin: appDelegate.margin + inset,
-                                topOffset: menuBarHeight
-                            )
-                            .fill(Color.white.opacity(brightness * intensity * (0.55 + 0.40 * glow)))
-                            .blur(radius: 0.8 + 1.2 * glow)
+                        // Tight edge perimeter bloom
+                        RoundedRingShape(
+                            thickness: T + 3 * glow,
+                            cornerRadius: appDelegate.cornerRadius,
+                            margin: max(0, appDelegate.margin - 1.5 * glow),
+                            topOffset: menuBarHeight
+                        )
+                        .fill(palette.base.opacity(brightness * glow * 0.85))
+                        .blur(radius: 3 + 5 * glow)
+                    }
+                    
+                    // Main illuminated ring base
+                    RoundedRingShape(
+                        thickness: T,
+                        cornerRadius: appDelegate.cornerRadius,
+                        margin: appDelegate.margin,
+                        topOffset: menuBarHeight
+                    )
+                    .fill(palette.base.opacity(brightness))
+                    .blur(radius: glow > 0 ? min(2.0, 2.0 * glow) : 0)
+                    
+                    // Radiant golden mid-band gradient (gives the rich, prominent yellowness across the band)
+                    if intensity > 0 && T > 8 {
+                        let midThickness = T * (0.50 + 0.30 * intensity)
+                        let inset = (T - midThickness) / 2
+                        RoundedRingShape(
+                            thickness: midThickness,
+                            cornerRadius: max(0, appDelegate.cornerRadius - inset),
+                            margin: appDelegate.margin + inset,
+                            topOffset: menuBarHeight
+                        )
+                        .fill(palette.mid.opacity(brightness * intensity * (0.45 + 0.50 * glow)))
+                        .blur(radius: 2.0 + 3.5 * glow)
+                    }
+                    
+                    // Luminous incandescent core (creamy warm-white brilliance)
+                    if intensity > 0 && T > 12 {
+                        let coreThickness = T * (0.32 + 0.22 * intensity)
+                        let inset = (T - coreThickness) / 2
+                        RoundedRingShape(
+                            thickness: coreThickness,
+                            cornerRadius: max(0, appDelegate.cornerRadius - inset),
+                            margin: appDelegate.margin + inset,
+                            topOffset: menuBarHeight
+                        )
+                        .fill(palette.core.opacity(brightness * intensity * (0.50 + 0.45 * glow)))
+                        .blur(radius: 1.2 + 2.2 * glow)
+                    }
+                    
+                    // White-hot filament center spine
+                    if intensity > 0 && T > 16 {
+                        let spineThickness = T * (0.14 + 0.12 * intensity)
+                        let inset = (T - spineThickness) / 2
+                        RoundedRingShape(
+                            thickness: spineThickness,
+                            cornerRadius: max(0, appDelegate.cornerRadius - inset),
+                            margin: appDelegate.margin + inset,
+                            topOffset: menuBarHeight
+                        )
+                        .fill(Color.white.opacity(brightness * intensity * (0.55 + 0.40 * glow)))
+                        .blur(radius: 0.8 + 1.2 * glow)
+                    }
+                }
+                .mask(
+                    Group {
+                        if appDelegate.avoidMouse {
+                            Canvas { context, size in
+                                // Start with a fully opaque mask
+                                context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.white))
+                                
+                                let mousePos = appDelegate.mouseLocation
+                                let eraseRadius: CGFloat = 300
+                                
+                                // Ultra-smooth quintic smootherstep (C2 continuous) radial gradient
+                                // Smoothly clears both the ring light and the interior leaking glow around the cursor,
+                                // with zero visible edges, circular outlines, or abrupt transitions.
+                                let gradient = Gradient(stops: [
+                                    .init(color: .white, location: 0.00),        // 100% cleared directly at cursor
+                                    .init(color: .white, location: 0.16),        // 100% cleared core (~48 pt)
+                                    .init(color: .white.opacity(0.98), location: 0.26),
+                                    .init(color: .white.opacity(0.90), location: 0.38),
+                                    .init(color: .white.opacity(0.74), location: 0.50),
+                                    .init(color: .white.opacity(0.52), location: 0.62),
+                                    .init(color: .white.opacity(0.30), location: 0.74),
+                                    .init(color: .white.opacity(0.12), location: 0.85),
+                                    .init(color: .white.opacity(0.02), location: 0.94),
+                                    .init(color: .clear, location: 1.00)         // 0% cleared beyond 300 pt
+                                ])
+                                
+                                context.blendMode = .destinationOut
+                                context.fill(
+                                    Path(ellipseIn: CGRect(
+                                        x: mousePos.x - eraseRadius,
+                                        y: mousePos.y - eraseRadius,
+                                        width: eraseRadius * 2,
+                                        height: eraseRadius * 2
+                                    )),
+                                    with: .radialGradient(
+                                        gradient,
+                                        center: mousePos,
+                                        startRadius: 0,
+                                        endRadius: eraseRadius
+                                    )
+                                )
+                            }
+                        } else {
+                            Rectangle().fill(Color.white)
                         }
                     }
-                    .mask(
-                        Group {
-                            if appDelegate.avoidMouse {
-                                Canvas { context, size in
-                                    // Start with a fully opaque mask
-                                    context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.white))
-                                    
-                                    let mousePos = appDelegate.mouseLocation
-                                    let eraseRadius: CGFloat = 260
-                                    
-                                    // Smoothstep transition with strong clear core (60 pt) and generous 260 pt radius
-                                    let gradient = Gradient(stops: [
-                                        .init(color: .white, location: 0.00),        // 100% cleared
-                                        .init(color: .white, location: 0.23),        // 100% cleared up to 60 pt from cursor
-                                        .init(color: .white.opacity(0.93), location: 0.35),
-                                        .init(color: .white.opacity(0.80), location: 0.45),
-                                        .init(color: .white.opacity(0.57), location: 0.58),
-                                        .init(color: .white.opacity(0.31), location: 0.72),
-                                        .init(color: .white.opacity(0.11), location: 0.85),
-                                        .init(color: .white.opacity(0.02), location: 0.94),
-                                        .init(color: .clear, location: 1.00)         // fully restored at 260 pt
-                                    ])
-                                    
-                                    context.blendMode = .destinationOut
-                                    context.fill(
-                                        Path(ellipseIn: CGRect(
-                                            x: mousePos.x - eraseRadius,
-                                            y: mousePos.y - eraseRadius,
-                                            width: eraseRadius * 2,
-                                            height: eraseRadius * 2
-                                        )),
-                                        with: .radialGradient(
-                                            gradient,
-                                            center: mousePos,
-                                            startRadius: 0,
-                                            endRadius: eraseRadius
-                                        )
-                                    )
-                                }
-                            } else {
-                                Rectangle().fill(Color.white)
-                            }
-                        }
-                    )
-                }
+                )
             }
         }
         .ignoresSafeArea()
