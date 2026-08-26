@@ -77,12 +77,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject, NSPopoverD
         }
     }
     @Published var colorTemperature: CGFloat = 0.5
-    let cornerRadius: CGFloat = 40 // Default fixed roundness
+    @Published var cornerRadius: CGFloat = 80
     @Published var glowIntensity: CGFloat = 0.5
     @Published var isActive: Bool = true
     @Published var avoidMouse: Bool = true
     @Published var showCameraPreview: Bool = false
-    @Published var margin: CGFloat = 20
+    @Published var margin: CGFloat = 8
     @Published var mouseLocation: CGPoint = .zero
     @Published var isMouseOverRing: Bool = false
     
@@ -139,7 +139,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject, NSPopoverD
     }
     
     func updatePopoverSize() {
-        popover?.contentSize = NSSize(width: 260, height: 500)
+        popover?.contentSize = NSSize(width: 260, height: 640)
     }
     
     func setSystemBrightness(_ level: Float) {
@@ -247,7 +247,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject, NSPopoverD
             button.target = self
         }
         popover = NSPopover()
-        popover?.contentSize = NSSize(width: 260, height: 500)
+        popover?.contentSize = NSSize(width: 260, height: 640)
         popover?.behavior = .transient
         popover?.delegate = self
         popover?.contentViewController = NSHostingController(rootView: MenuBarControlView(appDelegate: self))
@@ -390,28 +390,69 @@ struct RingLightOverlay: View {
     var body: some View {
         GeometryReader { geometry in
             if appDelegate.isActive {
+                let menuBarHeight = getMenuBarHeight()
+                let ringColor = Color(nsColor: appDelegate.ringColor)
+                let brightness = appDelegate.brightness
+                let glow = appDelegate.glowIntensity
+                
                 ZStack {
-                    ForEach(0..<3) { layer in
+                    if glow > 0 {
+                        // Wide atmospheric ambient glow (casts soft light into room and screen)
                         RoundedRingShape(
-                            thickness: appDelegate.ringThickness + CGFloat(layer) * 12,
+                            thickness: appDelegate.ringThickness + 20 * glow,
                             cornerRadius: appDelegate.cornerRadius,
-                            margin: appDelegate.margin,
-                            menuBarHeight: getMenuBarHeight()
+                            margin: max(0, appDelegate.margin - 10 * glow),
+                            topOffset: menuBarHeight
                         )
-                        .fill(
-                            Color(nsColor: appDelegate.ringColor)
-                                .opacity(appDelegate.brightness * appDelegate.glowIntensity / Double(layer + 2))
+                        .fill(ringColor.opacity(brightness * glow * 0.45))
+                        .blur(radius: 35 + 45 * glow)
+                        
+                        // Medium body bloom halo
+                        RoundedRingShape(
+                            thickness: appDelegate.ringThickness + 10 * glow,
+                            cornerRadius: appDelegate.cornerRadius,
+                            margin: max(0, appDelegate.margin - 5 * glow),
+                            topOffset: menuBarHeight
                         )
-                        .blur(radius: CGFloat(layer + 1) * 8)
+                        .fill(ringColor.opacity(brightness * glow * 0.6))
+                        .blur(radius: 15 + 20 * glow)
+                        
+                        // Tight perimeter bloom around edges
+                        RoundedRingShape(
+                            thickness: appDelegate.ringThickness + 4 * glow,
+                            cornerRadius: appDelegate.cornerRadius,
+                            margin: max(0, appDelegate.margin - 2 * glow),
+                            topOffset: menuBarHeight
+                        )
+                        .fill(ringColor.opacity(brightness * glow * 0.75))
+                        .blur(radius: 4 + 8 * glow)
                     }
                     
+                    // Main illuminated ring body
                     RoundedRingShape(
                         thickness: appDelegate.ringThickness,
                         cornerRadius: appDelegate.cornerRadius,
                         margin: appDelegate.margin,
-                        menuBarHeight: getMenuBarHeight()
+                        topOffset: menuBarHeight
                     )
-                    .fill(Color(nsColor: appDelegate.ringColor).opacity(appDelegate.brightness))
+                    .fill(ringColor.opacity(brightness))
+                    .blur(radius: glow > 0 ? min(2.5, 2.5 * glow) : 0)
+                    
+                    // Luminous central core highlight (illuminated tube / neon effect)
+                    if glow > 0 && appDelegate.ringThickness > 14 {
+                        let coreThickness = appDelegate.ringThickness * 0.38
+                        let inset = (appDelegate.ringThickness - coreThickness) / 2
+                        RoundedRingShape(
+                            thickness: coreThickness,
+                            cornerRadius: max(0, appDelegate.cornerRadius - inset),
+                            margin: appDelegate.margin + inset,
+                            topOffset: menuBarHeight
+                        )
+                        .fill(
+                            Color.white.opacity(brightness * glow * 0.55)
+                        )
+                        .blur(radius: 2 + 3 * glow)
+                    }
                 }
                 .mask(
                     Group {
@@ -447,8 +488,11 @@ struct RingLightOverlay: View {
     
     func getMenuBarHeight() -> CGFloat {
         guard let screen = NSScreen.main else { return 25 }
-        let height = screen.frame.height - screen.visibleFrame.height - screen.visibleFrame.origin.y
-        return max(height, 0)
+        let calculatedHeight = screen.frame.height - screen.visibleFrame.height - screen.visibleFrame.origin.y
+        if calculatedHeight > 0 {
+            return calculatedHeight
+        }
+        return NSStatusBar.system.thickness
     }
 }
 
@@ -456,25 +500,38 @@ struct RoundedRingShape: Shape {
     var thickness: CGFloat
     var cornerRadius: CGFloat
     var margin: CGFloat
-    var menuBarHeight: CGFloat
+    var topOffset: CGFloat = 0
+    
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(thickness, cornerRadius) }
+        set {
+            thickness = newValue.first
+            cornerRadius = newValue.second
+        }
+    }
     
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let outerRect = CGRect(
             x: rect.minX + margin,
-            y: rect.minY + margin + menuBarHeight,
-            width: rect.width - margin * 2,
-            height: rect.height - margin * 2 - menuBarHeight
+            y: rect.minY + margin + topOffset,
+            width: max(0, rect.width - margin * 2),
+            height: max(0, rect.height - margin * 2 - topOffset)
         )
         path.addRoundedRect(in: outerRect, cornerSize: CGSize(width: cornerRadius, height: cornerRadius))
         
         let innerRect = CGRect(
             x: rect.minX + margin + thickness,
-            y: rect.minY + margin + thickness + menuBarHeight,
-            width: rect.width - (margin + thickness) * 2,
-            height: rect.height - (margin + thickness) * 2 - menuBarHeight
+            y: rect.minY + margin + thickness + topOffset,
+            width: max(0, rect.width - (margin + thickness) * 2),
+            height: max(0, rect.height - (margin + thickness) * 2 - topOffset)
         )
-        let innerCornerRadius = max(cornerRadius - thickness * 0.6, 20)
+        let innerCornerRadius: CGFloat
+        if cornerRadius > thickness {
+            innerCornerRadius = cornerRadius - thickness
+        } else {
+            innerCornerRadius = max(0, cornerRadius * 0.4)
+        }
         path.addRoundedRect(in: innerRect, cornerSize: CGSize(width: innerCornerRadius, height: innerCornerRadius))
         return path
     }
@@ -569,6 +626,12 @@ struct MenuBarControlView: View {
                 
                 ControlSlider(icon: "rectangle.expand.vertical", label: "Thickness", value: $appDelegate.ringThickness, range: 10...100, unit: "px")
                 
+                ControlSlider(icon: "circle.circle", label: "Radius", value: $appDelegate.cornerRadius, range: 0...200, unit: "px")
+                
+                ControlSlider(icon: "arrow.up.left.and.arrow.down.right", label: "Margin", value: $appDelegate.margin, range: 0...40, unit: "px")
+                
+                ControlSlider(icon: "sun.dust.fill", label: "Glow", value: $appDelegate.glowIntensity, range: 0.0...1.0, unit: "%")
+                
                 HStack(spacing: 8) {
                     Toggle("", isOn: $appDelegate.avoidMouse)
                         .toggleStyle(.checkbox)
@@ -611,6 +674,6 @@ struct MenuBarControlView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 14) // More balanced padding
         }
-        .frame(width: 260, height: 500)
+        .frame(width: 260, height: 640)
     }
 }
