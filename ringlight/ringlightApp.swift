@@ -81,6 +81,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject, NSPopoverD
     @Published var glowIntensity: CGFloat = 0.5
     @Published var intensity: CGFloat = 1.0
     @Published var isActive: Bool = true
+    @Published var showTopSide: Bool = true
+    @Published var showBottomSide: Bool = true
+    @Published var showLeftSide: Bool = true
+    @Published var showRightSide: Bool = true
     @Published var avoidMouse: Bool = true
     @Published var showCameraPreview: Bool = false
     @Published var margin: CGFloat = 8
@@ -189,7 +193,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject, NSPopoverD
     }
     
     func updatePopoverSize() {
-        popover?.contentSize = NSSize(width: 260, height: 700)
+        popover?.contentSize = NSSize(width: 260, height: 760)
     }
     
     func setSystemBrightness(_ level: Float) {
@@ -299,7 +303,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject, NSPopoverD
             button.target = self
         }
         popover = NSPopover()
-        popover?.contentSize = NSSize(width: 260, height: 700)
+        popover?.contentSize = NSSize(width: 260, height: 760)
         popover?.behavior = .transient
         popover?.delegate = self
         popover?.contentViewController = NSHostingController(rootView: MenuBarControlView(appDelegate: self))
@@ -467,6 +471,10 @@ struct RingLightOverlay: View {
                 let glow = appDelegate.glowIntensity
                 let intensity = appDelegate.intensity
                 let T = appDelegate.ringThickness
+                let showTop = appDelegate.showTopSide
+                let showBottom = appDelegate.showBottomSide
+                let showLeft = appDelegate.showLeftSide
+                let showRight = appDelegate.showRightSide
                 
                 ZStack {
                     // 1. Wide Atmospheric Ambient Glow & Radiance Wash
@@ -476,7 +484,11 @@ struct RingLightOverlay: View {
                             thickness: T + 35 * glow,
                             cornerRadius: appDelegate.cornerRadius,
                             margin: max(0, appDelegate.margin - 17 * glow),
-                            topOffset: menuBarHeight
+                            topOffset: menuBarHeight,
+                            showTop: showTop,
+                            showBottom: showBottom,
+                            showLeft: showLeft,
+                            showRight: showRight
                         )
                         .fill(palette.base.opacity(brightness * glow * 0.45))
                         .blur(radius: 40 + 50 * glow)
@@ -486,7 +498,11 @@ struct RingLightOverlay: View {
                             thickness: T + 20 * glow,
                             cornerRadius: appDelegate.cornerRadius,
                             margin: max(0, appDelegate.margin - 10 * glow),
-                            topOffset: menuBarHeight
+                            topOffset: menuBarHeight,
+                            showTop: showTop,
+                            showBottom: showBottom,
+                            showLeft: showLeft,
+                            showRight: showRight
                         )
                         .fill(palette.mid.opacity(brightness * glow * (0.30 + 0.50 * intensity)))
                         .blur(radius: 20 + 25 * glow)
@@ -499,7 +515,11 @@ struct RingLightOverlay: View {
                             thickness: T + 10 * glow,
                             cornerRadius: appDelegate.cornerRadius,
                             margin: max(0, appDelegate.margin - 5 * glow),
-                            topOffset: menuBarHeight
+                            topOffset: menuBarHeight,
+                            showTop: showTop,
+                            showBottom: showBottom,
+                            showLeft: showLeft,
+                            showRight: showRight
                         )
                         .fill(palette.mid.opacity(brightness * glow * (0.40 + 0.50 * intensity)))
                         .blur(radius: 8 + 14 * glow)
@@ -509,7 +529,11 @@ struct RingLightOverlay: View {
                             thickness: T + 3 * glow,
                             cornerRadius: appDelegate.cornerRadius,
                             margin: max(0, appDelegate.margin - 1.5 * glow),
-                            topOffset: menuBarHeight
+                            topOffset: menuBarHeight,
+                            showTop: showTop,
+                            showBottom: showBottom,
+                            showLeft: showLeft,
+                            showRight: showRight
                         )
                         .fill(palette.base.opacity(brightness * glow * 0.85))
                         .blur(radius: 3 + 5 * glow)
@@ -520,7 +544,11 @@ struct RingLightOverlay: View {
                         thickness: T,
                         cornerRadius: appDelegate.cornerRadius,
                         margin: appDelegate.margin,
-                        topOffset: menuBarHeight
+                        topOffset: menuBarHeight,
+                        showTop: showTop,
+                        showBottom: showBottom,
+                        showLeft: showLeft,
+                        showRight: showRight
                     )
                     .fill(palette.base.opacity(brightness))
                     .blur(radius: glow > 0 ? min(2.0, 2.0 * glow) : 0)
@@ -533,7 +561,11 @@ struct RingLightOverlay: View {
                             thickness: midThickness,
                             cornerRadius: max(0, appDelegate.cornerRadius - inset),
                             margin: appDelegate.margin + inset,
-                            topOffset: menuBarHeight
+                            topOffset: menuBarHeight,
+                            showTop: showTop,
+                            showBottom: showBottom,
+                            showLeft: showLeft,
+                            showRight: showRight
                         )
                         .fill(palette.mid.opacity(brightness * intensity * (0.45 + 0.50 * glow)))
                         .blur(radius: 2.0 + 3.5 * glow)
@@ -547,7 +579,11 @@ struct RingLightOverlay: View {
                             thickness: coreThickness,
                             cornerRadius: max(0, appDelegate.cornerRadius - inset),
                             margin: appDelegate.margin + inset,
-                            topOffset: menuBarHeight
+                            topOffset: menuBarHeight,
+                            showTop: showTop,
+                            showBottom: showBottom,
+                            showLeft: showLeft,
+                            showRight: showRight
                         )
                         .fill(palette.core.opacity(brightness * intensity * (0.50 + 0.45 * glow)))
                         .blur(radius: 1.2 + 2.2 * glow)
@@ -561,7 +597,11 @@ struct RingLightOverlay: View {
                             thickness: spineThickness,
                             cornerRadius: max(0, appDelegate.cornerRadius - inset),
                             margin: appDelegate.margin + inset,
-                            topOffset: menuBarHeight
+                            topOffset: menuBarHeight,
+                            showTop: showTop,
+                            showBottom: showBottom,
+                            showLeft: showLeft,
+                            showRight: showRight
                         )
                         .fill(Color.white.opacity(brightness * intensity * (0.55 + 0.40 * glow)))
                         .blur(radius: 0.8 + 1.2 * glow)
@@ -634,6 +674,10 @@ struct RoundedRingShape: Shape {
     var cornerRadius: CGFloat
     var margin: CGFloat
     var topOffset: CGFloat = 0
+    var showTop: Bool = true
+    var showBottom: Bool = true
+    var showLeft: Bool = true
+    var showRight: Bool = true
     
     var animatableData: AnimatablePair<CGFloat, CGFloat> {
         get { AnimatablePair(thickness, cornerRadius) }
@@ -644,29 +688,171 @@ struct RoundedRingShape: Shape {
     }
     
     func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let outerRect = CGRect(
-            x: rect.minX + margin,
-            y: rect.minY + margin + topOffset,
-            width: max(0, rect.width - margin * 2),
-            height: max(0, rect.height - margin * 2 - topOffset)
-        )
-        path.addRoundedRect(in: outerRect, cornerSize: CGSize(width: cornerRadius, height: cornerRadius))
-        
-        let innerRect = CGRect(
-            x: rect.minX + margin + thickness,
-            y: rect.minY + margin + thickness + topOffset,
-            width: max(0, rect.width - (margin + thickness) * 2),
-            height: max(0, rect.height - (margin + thickness) * 2 - topOffset)
-        )
-        let innerCornerRadius: CGFloat
-        if cornerRadius > thickness {
-            innerCornerRadius = cornerRadius - thickness
-        } else {
-            innerCornerRadius = max(0, cornerRadius * 0.4)
+        // If no sides are enabled, return empty path
+        if !showTop && !showBottom && !showLeft && !showRight {
+            return Path()
         }
-        path.addRoundedRect(in: innerRect, cornerSize: CGSize(width: innerCornerRadius, height: innerCornerRadius))
-        return path
+        
+        // Fast path: When all 4 sides are active, draw complete closed ring
+        if showTop && showBottom && showLeft && showRight {
+            var path = Path()
+            let outerRect = CGRect(
+                x: rect.minX + margin,
+                y: rect.minY + margin + topOffset,
+                width: max(0, rect.width - margin * 2),
+                height: max(0, rect.height - margin * 2 - topOffset)
+            )
+            path.addRoundedRect(in: outerRect, cornerSize: CGSize(width: cornerRadius, height: cornerRadius))
+            
+            let innerRect = CGRect(
+                x: rect.minX + margin + thickness,
+                y: rect.minY + margin + thickness + topOffset,
+                width: max(0, rect.width - (margin + thickness) * 2),
+                height: max(0, rect.height - (margin + thickness) * 2 - topOffset)
+            )
+            let innerCornerRadius: CGFloat
+            if cornerRadius > thickness {
+                innerCornerRadius = cornerRadius - thickness
+            } else {
+                innerCornerRadius = max(0, cornerRadius * 0.4)
+            }
+            path.addRoundedRect(in: innerRect, cornerSize: CGSize(width: innerCornerRadius, height: innerCornerRadius))
+            return path
+        }
+        
+        let minX = rect.minX + margin
+        let maxX = rect.maxX - margin
+        let minY = rect.minY + margin + topOffset
+        let maxY = rect.maxY - margin
+        
+        guard maxX > minX, maxY > minY else { return Path() }
+        
+        let halfT = thickness / 2
+        let topY = minY + halfT
+        let bottomY = maxY - halfT
+        let leftX = minX + halfT
+        let rightX = maxX - halfT
+        
+        let R = min(cornerRadius, min((maxX - minX) / 2, (maxY - minY) / 2))
+        let Rc = max(0, R - halfT)
+        
+        var centerPath = Path()
+        
+        let hasTL = showTop && showLeft
+        let hasTR = showTop && showRight
+        let hasBR = showBottom && showRight
+        let hasBL = showBottom && showLeft
+        
+        let sideEnabled = [showTop, showRight, showBottom, showLeft]
+        let cornerConnected = [hasTR, hasBR, hasBL, hasTL]
+        
+        var visited = [false, false, false, false]
+        
+        for startIndex in 0..<4 {
+            let prevCorner = (startIndex + 3) % 4
+            if sideEnabled[startIndex] && !visited[startIndex] && !cornerConnected[prevCorner] {
+                var curr = startIndex
+                var isFirst = true
+                
+                while true {
+                    visited[curr] = true
+                    
+                    switch curr {
+                    case 0: // Top
+                        let startX = hasTL ? minX + R : leftX
+                        let endX = hasTR ? maxX - R : rightX
+                        if isFirst {
+                            centerPath.move(to: CGPoint(x: startX, y: topY))
+                            isFirst = false
+                        }
+                        centerPath.addLine(to: CGPoint(x: endX, y: topY))
+                        
+                    case 1: // Right
+                        let startY = hasTR ? minY + R : topY
+                        let endY = hasBR ? maxY - R : bottomY
+                        if isFirst {
+                            centerPath.move(to: CGPoint(x: rightX, y: startY))
+                            isFirst = false
+                        }
+                        centerPath.addLine(to: CGPoint(x: rightX, y: endY))
+                        
+                    case 2: // Bottom
+                        let startX = hasBR ? maxX - R : rightX
+                        let endX = hasBL ? minX + R : leftX
+                        if isFirst {
+                            centerPath.move(to: CGPoint(x: startX, y: bottomY))
+                            isFirst = false
+                        }
+                        centerPath.addLine(to: CGPoint(x: endX, y: bottomY))
+                        
+                    case 3: // Left
+                        let startY = hasBL ? maxY - R : bottomY
+                        let endY = hasTL ? minY + R : topY
+                        if isFirst {
+                            centerPath.move(to: CGPoint(x: leftX, y: startY))
+                            isFirst = false
+                        }
+                        centerPath.addLine(to: CGPoint(x: leftX, y: endY))
+                        
+                    default:
+                        break
+                    }
+                    
+                    let nextCorner = curr
+                    let nextSide = (curr + 1) % 4
+                    if cornerConnected[nextCorner] && !visited[nextSide] {
+                        if Rc > 0 {
+                            switch nextCorner {
+                            case 0: // TR
+                                centerPath.addRelativeArc(
+                                    center: CGPoint(x: maxX - R, y: minY + R),
+                                    radius: Rc,
+                                    startAngle: Angle(degrees: 270),
+                                    delta: Angle(degrees: 90)
+                                )
+                            case 1: // BR
+                                centerPath.addRelativeArc(
+                                    center: CGPoint(x: maxX - R, y: maxY - R),
+                                    radius: Rc,
+                                    startAngle: Angle(degrees: 0),
+                                    delta: Angle(degrees: 90)
+                                )
+                            case 2: // BL
+                                centerPath.addRelativeArc(
+                                    center: CGPoint(x: minX + R, y: maxY - R),
+                                    radius: Rc,
+                                    startAngle: Angle(degrees: 90),
+                                    delta: Angle(degrees: 90)
+                                )
+                            case 3: // TL
+                                centerPath.addRelativeArc(
+                                    center: CGPoint(x: minX + R, y: minY + R),
+                                    radius: Rc,
+                                    startAngle: Angle(degrees: 180),
+                                    delta: Angle(degrees: 90)
+                                )
+                            default:
+                                break
+                            }
+                        } else {
+                            switch nextCorner {
+                            case 0: centerPath.addLine(to: CGPoint(x: rightX, y: topY))
+                            case 1: centerPath.addLine(to: CGPoint(x: rightX, y: bottomY))
+                            case 2: centerPath.addLine(to: CGPoint(x: leftX, y: bottomY))
+                            case 3: centerPath.addLine(to: CGPoint(x: leftX, y: topY))
+                            default: break
+                            }
+                        }
+                        curr = nextSide
+                    } else {
+                        break
+                    }
+                }
+            }
+        }
+        
+        let cap: CGLineCap = cornerRadius > 0 ? .round : .butt
+        return centerPath.strokedPath(StrokeStyle(lineWidth: thickness, lineCap: cap, lineJoin: .round))
     }
 }
 
@@ -761,6 +947,27 @@ struct MenuBarControlView: View {
                 
                 ControlSlider(icon: "sun.dust.fill", label: "Glow", value: $appDelegate.glowIntensity, range: 0.0...1.0, unit: "%")
                 
+                // Active Sides Selector
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Image(systemName: "square.dashed")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .frame(width: 14)
+                        Text("Active Sides")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    
+                    HStack(spacing: 6) {
+                        SideToggleButton(label: "Top", icon: "arrow.up", isOn: $appDelegate.showTopSide)
+                        SideToggleButton(label: "Bottom", icon: "arrow.down", isOn: $appDelegate.showBottomSide)
+                        SideToggleButton(label: "Left", icon: "arrow.left", isOn: $appDelegate.showLeftSide)
+                        SideToggleButton(label: "Right", icon: "arrow.right", isOn: $appDelegate.showRightSide)
+                    }
+                }
+                
                 ControlSlider(icon: "rectangle.expand.vertical", label: "Thickness", value: $appDelegate.ringThickness, range: 10...100, unit: "px")
                 
                 ControlSlider(icon: "circle.circle", label: "Radius", value: $appDelegate.cornerRadius, range: 0...200, unit: "px")
@@ -809,6 +1016,37 @@ struct MenuBarControlView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 14) // More balanced padding
         }
-        .frame(width: 260, height: 700)
+        .frame(width: 260, height: 760)
+    }
+}
+
+struct SideToggleButton: View {
+    let label: String
+    let icon: String
+    @Binding var isOn: Bool
+    
+    var body: some View {
+        Button(action: {
+            isOn.toggle()
+        }) {
+            VStack(spacing: 3) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .bold))
+                Text(label)
+                    .font(.system(size: 10, weight: .medium))
+            }
+            .foregroundColor(isOn ? .white : .secondary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 38)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isOn ? Color.accentColor : Color(NSColor.controlBackgroundColor).opacity(0.6))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(isOn ? Color.white.opacity(0.25) : Color.white.opacity(0.06), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
